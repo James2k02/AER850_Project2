@@ -1,7 +1,10 @@
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
 
 '''Data Processing'''
-# Now we need to define the image size which is suppose to be 500 x 500
+
+# We need to define the image size which is suppose to be 500 x 500
 img_height = 500
 img_width = 500
 batch_size = 32 # determines how many images are processed in one batch when training
@@ -67,10 +70,95 @@ valid_generator = valid_datagen.flow_from_directory(
 
 print("Class indices: ", train_generator.class_indices)
 
+'''Neural Network Architecture Design'''
+
+# Creating a sequential model where you can add each layer individually 
+# This first model will be a simple one to allow for comparison with the 
+# second model; will have no dropout layer since its already simple
+
+model1 = Sequential()
+
+# adding layers to the model
+
+# The convlution layer is responsible for extracting features from the input data 
+# by applying various operations. This layer helps the model identify different features
+# such as simple shapes within the image. Each of the filters (or kernels) detects a specific
+# type of feature like an edge or a horizontal line within the input data. For this project,
+# the convolution layers will use the ReLU activation function.
+
+# The max pooling layer reduces the spatial dimensions of the input feature maps while
+# retaining the important parts. Basically just makes the model more computationally efficient 
+# and robust to small translations or distortions
+
+# can play around with the input shape at the beginning --> maybe smaller and no RGB
+model1.add(Conv2D(32, (3, 3), activation = 'relu', input_shape = (500, 500, 3)))
+model1.add(MaxPooling2D(pool_size = (2, 2)))
+
+# increase in filters in order to capture and learn more complex features as we go
+model1.add(Conv2D(64, (3, 3), activation = 'relu'))
+model1.add(MaxPooling2D(pool_size = (2, 2)))
+
+model1.add(Conv2D(128, (3, 3), activation = 'relu'))
+model1.add(MaxPooling2D(pool_size = (2, 2)))
+
+# flatten layer converts the 2D feature maps into a 1D vector to be passed into
+# the fully connected layers
+model1.add(Flatten())
+
+# dense layer adds a fully connected layer with 128 neurons, this where it will
+# begin to connect every input from previous neurons to the ones in this layer
+# and begin to learn patterns and relationships
+model1.add(Dense(128, activation='relu'))
+
+# dropout layer will randomly set a certain % of input units to 0 during training
+# in order to prevent overfitting 
+model1.add(Dropout(0.2))
+
+# final output layer that has 3 neurons (one for each class)
+# softmax activation function used to convert output into a probability distribution
+# across the classes
+model1.add(Dense(3, activation='softmax'))
+
+# compiling the model
+model1.compile(optimizer = 'adam', loss = 'categorical_crossentropy', metrics = ['accuracy'])
+
+# summary of the model which shows the number of layers, output shape of each layer, 
+# and total parameters in the model
+model1.summary()
 
 
+# Creating a second model (more complex)
 
+model2 = Sequential()
 
+# adding layers
+model2.add(Conv2D(32, (3, 3), activation = 'relu', input_shape = (500, 500, 3)))
+model2.add(MaxPooling2D(pool_size = (2, 2)))
+
+model2.add(Conv2D(64, (3, 3), activation = 'relu'))
+model2.add(MaxPooling2D(pool_size = (2, 2)))
+
+model2.add(Conv2D(128, (3, 3), activation = 'relu'))
+model2.add(MaxPooling2D(pool_size = (2, 2)))
+
+model2.add(Conv2D(256, (3, 3), activation = 'relu'))
+model2.add(MaxPooling2D(pool_size = (2, 2)))
+
+model2.add(Flatten())
+
+model2.add(Dense(512, activation = 'relu'))
+model2.add(Dropout(0.3))
+
+model2.add(Dense(256, activation = 'relu'))
+model2.add(Dropout(0.5))
+
+model2.add(Dense(3, activation = 'softmax'))
+
+# model compilation
+model2.compile(optimizer = 'adam', loss = 'categorical_crossentropy', metrics = ['accuracy'])
+
+# model summary
+model2.summary()
 
 
 
