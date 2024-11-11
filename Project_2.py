@@ -1,3 +1,4 @@
+import tensorflow as tf
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
@@ -161,14 +162,52 @@ model2.compile(optimizer = 'adam', loss = 'categorical_crossentropy', metrics = 
 model2.summary()
 
 
+'''Model Training'''
 
+# training the first model
 
+# steps_per_epoch defines how many batchs to process before considering an epoch to be complete
 
+# epochs is the number of times the model goes through the entire training set
 
+# validation_data uses the validation generator to evaluate the model after each epoch
 
+# validation_steps defines the number of batches to process from the validation
+# generator at each epoch
 
+trained1 = model1.fit(
+    train_generator,
+    steps_per_epoch = train_generator.samples // train_generator.batch_size,
+    epochs = 20,
+    validation_data = valid_generator,
+    validation_steps = valid_generator.samples // valid_generator.batch_size
+    )
 
+import matplotlib.pyplot as plt
 
+# plotting model 1
+plt.figure(figsize = (12 ,5))
+
+# accuracy plot
+plt.subplot(1, 2, 1)
+plt.plot(trained1.history['accuracy'], label = 'Training Accuracy')
+plt.plot(trained1.history['val_accuracy'], label = 'Validation Accuracy')
+plt.title('Training and Validation Accuracy')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+plt.legend()
+
+# loss plot
+plt.subplot(1, 2, 2)
+plt.plot(trained1.history['loss'], label = 'Training Loss')
+plt.plot(trained1.history['val_loss'], label = 'Validation Loss')
+plt.title('Training and Validation Loss')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.legend()
+
+plt.tight_layout()
+plt.show()
 
 
 
