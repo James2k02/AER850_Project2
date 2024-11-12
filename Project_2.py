@@ -6,9 +6,9 @@ from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropou
 '''Data Processing'''
 
 # We need to define the image size which is suppose to be 500 x 500
-img_height = 500
-img_width = 500
-batch_size = 32 # determines how many images are processed in one batch when training
+img_height = 200
+img_width = 200
+batch_size = 128 # determines how many images are processed in one batch when training
 
 # Setting the directory paths for train and validation folder
 # Notes: validation and test are different
@@ -16,8 +16,8 @@ batch_size = 32 # determines how many images are processed in one batch when tra
 #             after each training iteration (epoch)
 # Test: is used to evaluate the final model's performance after training and tuning
 
-train_directory = 'Data/train'
-valid_directory = 'Data/valid'
+train_directory = '/content/drive/MyDrive/Notability/Datasets/Data/train'
+valid_directory = '/content/drive/MyDrive/Notability/Datasets/Data/valid'
 
 # Creating an ImageDataGenerator for Training Data
 
@@ -55,7 +55,7 @@ train_generator = train_datagen.flow_from_directory(
     train_directory,
     target_size = (img_height, img_width), # Resizes images to 500 x 500
     batch_size = batch_size,
-    color_mode = 'rgb', # Converts the greyscale images to RGB
+    color_mode = 'grayscale', # Converts the greyscale images to RGB
     class_mode = 'categorical' # Used for multi-class classification (3 labels)
     )
 
@@ -63,7 +63,7 @@ valid_generator = valid_datagen.flow_from_directory(
     valid_directory,
     target_size = (img_height, img_width),
     batch_size = batch_size,
-    color_mode = 'rgb',
+    color_mode = 'grayscale',
     class_mode = 'categorical'
     )
 
@@ -92,7 +92,7 @@ model1 = Sequential()
 # and robust to small translations or distortions
 
 # can play around with the input shape at the beginning --> maybe smaller and no RGB
-model1.add(Conv2D(32, (3, 3), activation = 'relu', input_shape = (500, 500, 3)))
+model1.add(Conv2D(32, (3, 3), activation = 'relu', input_shape = (200, 200, 1)))
 model1.add(MaxPooling2D(pool_size = (2, 2)))
 
 # increase in filters in order to capture and learn more complex features as we go
@@ -133,7 +133,7 @@ model1.summary()
 model2 = Sequential()
 
 # adding layers
-model2.add(Conv2D(32, (3, 3), activation = 'relu', input_shape = (500, 500, 3)))
+model2.add(Conv2D(32, (3, 3), activation = 'relu', input_shape = (200, 200, 1)))
 model2.add(MaxPooling2D(pool_size = (2, 2)))
 
 model2.add(Conv2D(64, (3, 3), activation = 'relu'))
@@ -178,7 +178,7 @@ model2.summary()
 trained1 = model1.fit(
     train_generator,
     steps_per_epoch = train_generator.samples // train_generator.batch_size,
-    epochs = 20,
+    epochs = 75,
     validation_data = valid_generator,
     validation_steps = valid_generator.samples // valid_generator.batch_size
     )
