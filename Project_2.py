@@ -1,14 +1,19 @@
 import tensorflow as tf
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, BatchNormalization
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
+from tensorflow.keras.regularizers import l2
+from tensorflow.keras.optimizers import Adam
+import matplotlib.pyplot as plt
+import pickle
 
 '''Data Processing'''
 
 # We need to define the image size which is suppose to be 500 x 500
-img_height = 200
-img_width = 200
-batch_size = 128 # determines how many images are processed in one batch when training
+img_height = 96
+img_width = 96
+batch_size = 32 # determines how many images are processed in one batch when training
 
 # Setting the directory paths for train and validation folder
 # Notes: validation and test are different
@@ -18,6 +23,7 @@ batch_size = 128 # determines how many images are processed in one batch when tr
 
 train_directory = '/content/drive/MyDrive/Notability/Datasets/Data/train'
 valid_directory = '/content/drive/MyDrive/Notability/Datasets/Data/valid'
+test_directory = '/content/drive/MyDrive/Notability/Datasets/Data/test'
 
 # Creating an ImageDataGenerator for Training Data
 
@@ -27,10 +33,10 @@ valid_directory = '/content/drive/MyDrive/Notability/Datasets/Data/valid'
 
 train_datagen = ImageDataGenerator(
     rescale = 1./255, # normalizes the pixel values, scaling them from [0, 255] to [0, 1]
-    shear_range = 0.2,
+    shear_range = 0.2, # the rest are different data augementation method
     zoom_range = 0.2,
     horizontal_flip = True,
-    rotation_range = 90,
+    rotation_range = 30,
     brightness_range = [0.1, 1.0]
     )
 
@@ -49,13 +55,15 @@ train_datagen = ImageDataGenerator(
 
 valid_datagen = ImageDataGenerator(rescale = 1./255)
 
+test_datagen = ImageDataGenerator(rescale = 1./255)
+
 # Now, we can grab the images from the directories and create image data to use
 
 train_generator = train_datagen.flow_from_directory(
     train_directory,
-    target_size = (img_height, img_width), # Resizes images to 500 x 500
+    target_size = (img_height, img_width), # Resizes images to 96 x 96
     batch_size = batch_size,
-    color_mode = 'grayscale', # Converts the greyscale images to RGB
+    color_mode = 'grayscale', # keeps it grayscale instead of RGB
     class_mode = 'categorical' # Used for multi-class classification (3 labels)
     )
 
@@ -67,6 +75,14 @@ valid_generator = valid_datagen.flow_from_directory(
     class_mode = 'categorical'
     )
 
+test_generator = test_datagen.flow_from_directory(
+    test_directory,
+    target_size = (img_height, img_width),
+    batch_size = batch_size,
+    color_mode = 'grayscale',
+    class_mode = 'categorical'
+)
+
 # Checking if the labels to see if it split correctly
 
 print("Class indices: ", train_generator.class_indices)
@@ -74,8 +90,6 @@ print("Class indices: ", train_generator.class_indices)
 '''Neural Network Architecture Design'''
 
 # Creating a sequential model where you can add each layer individually 
-# This first model will be a simple one to allow for comparison with the 
-# second model; will have no dropout layer since its already simple
 
 model1 = Sequential()
 
@@ -91,19 +105,24 @@ model1 = Sequential()
 # retaining the important parts. Basically just makes the model more computationally efficient 
 # and robust to small translations or distortions
 
-# can play around with the input shape at the beginning --> maybe smaller and no RGB
-model1.add(Conv2D(32, (3, 3), activation = 'relu', input_shape = (200, 200, 1)))
+# Batch Normalization allows the model to stabilize and also speeds up he training
+
+model1.add(Conv2D(32, (3, 3), activation = 'relu', input_shape = (96, 96, 1), kernel_regularizer = l2(0.001)))
+model1.add(BatchNormalization())
 model1.add(MaxPooling2D(pool_size = (2, 2)))
 
 # increase in filters in order to capture and learn more complex features as we go
-model1.add(Conv2D(64, (3, 3), activation = 'relu'))
+model1.add(Conv2D(64, (3, 3), activation = 'relu', kernel_regularizer = l2(0.001)))
+model1.add(BatchNormalization())
 model1.add(MaxPooling2D(pool_size = (2, 2)))
 
-model1.add(Conv2D(128, (3, 3), activation = 'relu'))
+model1.add(Conv2D(128, (3, 3), activation = 'relu', kernel_regularizer = l2(0.001)))
+model1.add(BatchNormalization())
 model1.add(MaxPooling2D(pool_size = (2, 2)))
 
 # flatten layer converts the 2D feature maps into a 1D vector to be passed into
 # the fully connected layers
+model1.add(BatchNormalization())
 model1.add(Flatten())
 
 # dense layer adds a fully connected layer with 128 neurons, this where it will
@@ -113,7 +132,7 @@ model1.add(Dense(128, activation='relu'))
 
 # dropout layer will randomly set a certain % of input units to 0 during training
 # in order to prevent overfitting 
-model1.add(Dropout(0.2))
+model1.add(Dropout(0.3))
 
 # final output layer that has 3 neurons (one for each class)
 # softmax activation function used to convert output into a probability distribution
@@ -121,42 +140,59 @@ model1.add(Dropout(0.2))
 model1.add(Dense(3, activation='softmax'))
 
 # compiling the model
-model1.compile(optimizer = 'adam', loss = 'categorical_crossentropy', metrics = ['accuracy'])
+model1.compile(optimizer = Adam(learning_rate = 0.0005), loss = 'categorical_crossentropy', metrics = ['accuracy'])
 
 # summary of the model which shows the number of layers, output shape of each layer, 
 # and total parameters in the model
 model1.summary()
 
+early_stopping = EarlyStopping(
+    monitor = "val_accuracy",  # Metric to monitor
+    patience = 20,  # Number of epochs to wait for improvement
+    restore_best_weights = True,  # Restore the weights of the best model
+)
+
+reduce_lr = ReduceLROnPlateau(
+    monitor = "val_loss",
+    factor = 0.5,
+    patience = 5,
+    min_lr = 1e-6
+)
 
 # Creating a second model (more complex)
 
 model2 = Sequential()
 
 # adding layers
-model2.add(Conv2D(32, (3, 3), activation = 'relu', input_shape = (200, 200, 1)))
+model2.add(Conv2D(32, (3, 3), activation = 'relu', input_shape = (96, 96, 1), kernel_regularizer = l2(0.001)))
+model2.add(BatchNormalization())
 model2.add(MaxPooling2D(pool_size = (2, 2)))
 
-model2.add(Conv2D(64, (3, 3), activation = 'relu'))
+model2.add(Conv2D(64, (3, 3), activation = 'relu', kernel_regularizer = l2(0.001)))
+model2.add(BatchNormalization())
 model2.add(MaxPooling2D(pool_size = (2, 2)))
 
-model2.add(Conv2D(128, (3, 3), activation = 'relu'))
+model2.add(Conv2D(128, (3, 3), activation = 'relu', kernel_regularizer = l2(0.001)))
+model2.add(BatchNormalization())
 model2.add(MaxPooling2D(pool_size = (2, 2)))
 
-model2.add(Conv2D(256, (3, 3), activation = 'relu'))
+model2.add(Conv2D(256, (3, 3), activation = 'relu', kernel_regularizer = l2(0.001)))
+model2.add(BatchNormalization())
 model2.add(MaxPooling2D(pool_size = (2, 2)))
 
+model2.add(BatchNormalization())
 model2.add(Flatten())
 
-model2.add(Dense(512, activation = 'relu'))
-model2.add(Dropout(0.3))
+model2.add(Dense(128, activation = 'relu', kernel_regularizer = l2(0.001)))
+model2.add(Dropout(0.2))
 
-model2.add(Dense(256, activation = 'relu'))
-model2.add(Dropout(0.5))
+model2.add(Dense(128, activation = 'relu', kernel_regularizer = l2(0.001)))
+model2.add(Dropout(0.2))
 
-model2.add(Dense(3, activation = 'softmax'))
+model2.add(Dense(3, activation = 'softmax', kernel_regularizer = l2(0.001)))
 
 # model compilation
-model2.compile(optimizer = 'adam', loss = 'categorical_crossentropy', metrics = ['accuracy'])
+model2.compile(optimizer = Adam(learning_rate = 0.0001), loss = 'categorical_crossentropy', metrics = ['accuracy'])
 
 # model summary
 model2.summary()
@@ -177,21 +213,29 @@ model2.summary()
 
 trained1 = model1.fit(
     train_generator,
-    steps_per_epoch = train_generator.samples // train_generator.batch_size,
-    epochs = 75,
+    epochs = 100,
     validation_data = valid_generator,
-    validation_steps = valid_generator.samples // valid_generator.batch_size
+    callbacks = [early_stopping, reduce_lr]
     )
 
-import matplotlib.pyplot as plt
+# Saving Model 1
+model1.save('/content/drive/MyDrive/Notability/Datasets/model1.keras')
+
+with open('/content/drive/MyDrive/Notability/Datasets/model1_history.pkl', 'wb') as file:
+    pickle.dump(trained1.history, file)
+    
+# Opening Model 1 (if needed)
+with open('/content/drive/MyDrive/Notability/Datasets/model1_history.pkl', 'rb') as f:
+    history = pickle.load(f)
+
 
 # plotting model 1
 plt.figure(figsize = (12 ,5))
 
 # accuracy plot
 plt.subplot(1, 2, 1)
-plt.plot(trained1.history['accuracy'], label = 'Training Accuracy')
-plt.plot(trained1.history['val_accuracy'], label = 'Validation Accuracy')
+plt.plot(history['accuracy'], label = 'Training Accuracy')
+plt.plot(history['val_accuracy'], label = 'Validation Accuracy')
 plt.title('Training and Validation Accuracy')
 plt.xlabel('Epochs')
 plt.ylabel('Accuracy')
@@ -199,15 +243,73 @@ plt.legend()
 
 # loss plot
 plt.subplot(1, 2, 2)
-plt.plot(trained1.history['loss'], label = 'Training Loss')
-plt.plot(trained1.history['val_loss'], label = 'Validation Loss')
+plt.plot(history['loss'], label = 'Training Loss')
+plt.plot(history['val_loss'], label = 'Validation Loss')
 plt.title('Training and Validation Loss')
 plt.xlabel('Epochs')
 plt.ylabel('Loss')
 plt.legend()
 
-plt.tight_layout()
 plt.show()
+
+
+# training second model
+trained2 = model2.fit(
+    train_generator,
+    epochs = 100,
+    validation_data = valid_generator,
+    callbacks = [early_stopping, reduce_lr]
+    )
+
+# saving model 2
+model2.save('/content/drive/MyDrive/Notability/Datasets/model2.keras')
+
+with open('/content/drive/MyDrive/Notability/Datasets/model2_history.pkl', 'wb') as file:
+    pickle.dump(trained2.history, file)
+    
+# opening model 2
+with open('/content/drive/MyDrive/Notability/Datasets/model2_history.pkl', 'rb') as f:
+    history2 = pickle.load(f)
+    
+# plotting model 2
+plt.figure(figsize = (12 ,4))
+
+# accuracy plot
+plt.subplot(1, 2, 1)
+plt.plot(history2['accuracy'], label = 'Training Accuracy')
+plt.plot(history2['val_accuracy'], label = 'Validation Accuracy')
+plt.title('Training and Validation Accuracy')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+plt.legend()
+
+# loss plot
+plt.subplot(1, 2, 2)
+plt.plot(history2['loss'], label = 'Training Loss')
+plt.plot(history2['val_loss'], label = 'Validation Loss')
+plt.title('Training and Validation Loss')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.legend()
+
+plt.show()
+
+
+'''Model Evaluation'''
+
+# model 1
+test_loss, test_accuracy = model1.evaluate(test_generator, verbose = 2)
+
+# Print the results
+print("Test Loss 1:", test_loss)
+print("Test Accuracy 1:", test_accuracy)
+
+# model 2
+test_loss2, test_accuracy2 = model2.evaluate(test_generator, verbose = 2)
+
+# Print the results
+print("Test Loss 2:", test_loss2)
+print("Test Accuracy 2:", test_accuracy2)
 
 
 
