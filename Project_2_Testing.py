@@ -51,7 +51,7 @@ def display_prediction(image_path):
     # Display the image with probabilities
     plt.imshow(img, cmap = 'gray')
     plt.axis('off')
-    plt.title(f"True Crack Classification Label: {true_label}\nPredicted Crack Classification Label: {predicted_label}")
+    plt.title(f"True Class Classification Label: {true_label}\nPredicted Class Classification Label: {predicted_label}")
 
     # Overlay each probability on the image
     text_y_position = 30
@@ -86,7 +86,7 @@ def display_prediction(image_path):
     # Display the image with probabilities
     plt.imshow(img, cmap = 'gray')
     plt.axis('off')
-    plt.title(f"True Crack Classification Label: {true_label}\nPredicted Crack Classification Label: {predicted_label}")
+    plt.title(f"True Class Classification Label: {true_label}\nPredicted Class Classification Label: {predicted_label}")
 
     # Overlay each probability on the image
     text_y_position = 30

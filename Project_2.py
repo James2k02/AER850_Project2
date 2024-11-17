@@ -33,7 +33,7 @@ test_directory = '/content/drive/MyDrive/Notability/Datasets/Data/test'
 
 train_datagen = ImageDataGenerator(
     rescale = 1./255, # normalizes the pixel values, scaling them from [0, 255] to [0, 1]
-    shear_range = 0.2, # the rest are different data augementation method
+    shear_range = 0.2, # the rest are different data augementation methods
     zoom_range = 0.2,
     horizontal_flip = True,
     rotation_range = 30,
@@ -95,7 +95,7 @@ model1 = Sequential()
 
 # adding layers to the model
 
-# The convlution layer is responsible for extracting features from the input data 
+# The convolution layer is responsible for extracting features from the input data 
 # by applying various operations. This layer helps the model identify different features
 # such as simple shapes within the image. Each of the filters (or kernels) detects a specific
 # type of feature like an edge or a horizontal line within the input data. For this project,
@@ -128,7 +128,7 @@ model1.add(Flatten())
 # dense layer adds a fully connected layer with 128 neurons, this where it will
 # begin to connect every input from previous neurons to the ones in this layer
 # and begin to learn patterns and relationships
-model1.add(Dense(128, activation='relu'))
+model1.add(Dense(128, activation = 'relu'))
 
 # dropout layer will randomly set a certain % of input units to 0 during training
 # in order to prevent overfitting 
@@ -137,7 +137,7 @@ model1.add(Dropout(0.3))
 # final output layer that has 3 neurons (one for each class)
 # softmax activation function used to convert output into a probability distribution
 # across the classes
-model1.add(Dense(3, activation='softmax'))
+model1.add(Dense(3, activation = 'softmax'))
 
 # compiling the model
 model1.compile(optimizer = Adam(learning_rate = 0.0005), loss = 'categorical_crossentropy', metrics = ['accuracy'])
@@ -164,19 +164,19 @@ reduce_lr = ReduceLROnPlateau(
 model2 = Sequential()
 
 # adding layers
-model2.add(Conv2D(32, (3, 3), activation = 'relu', input_shape = (96, 96, 1), kernel_regularizer = l2(0.001)))
+model2.add(Conv2D(32, (4, 4), activation = 'relu', input_shape = (96, 96, 1)))
 model2.add(BatchNormalization())
 model2.add(MaxPooling2D(pool_size = (2, 2)))
 
-model2.add(Conv2D(64, (3, 3), activation = 'relu', kernel_regularizer = l2(0.001)))
+model2.add(Conv2D(64, (4, 4), activation = 'relu'))
 model2.add(BatchNormalization())
 model2.add(MaxPooling2D(pool_size = (2, 2)))
 
-model2.add(Conv2D(128, (3, 3), activation = 'relu', kernel_regularizer = l2(0.001)))
+model2.add(Conv2D(128, (4, 4), activation = 'relu'))
 model2.add(BatchNormalization())
 model2.add(MaxPooling2D(pool_size = (2, 2)))
 
-model2.add(Conv2D(256, (3, 3), activation = 'relu', kernel_regularizer = l2(0.001)))
+model2.add(Conv2D(256, (4, 4), activation = 'relu'))
 model2.add(BatchNormalization())
 model2.add(MaxPooling2D(pool_size = (2, 2)))
 
